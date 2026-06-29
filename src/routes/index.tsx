@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Upload,
@@ -21,55 +20,168 @@ import {
   AlertTriangle,
   Loader2,
   Store,
-  Printer,
   ArrowRight,
+  Languages,
 } from "lucide-react";
-import { Link } from "@tanstack/react-router";
-import {
-  T,
-  tr,
-  LANGS,
-  type Lang,
-} from "@/lib/i18n";
-import {
-  ALLOWED_EXT,
-  DEFAULT_SETTINGS,
-  MAX_BYTES,
-  costForFile,
-  estimatePages,
-  extOf,
-  formatBytes,
-  isImage,
-  isPdf,
-  type ColorMode,
-  type Orientation,
-  type PaperSize,
-  type PrintFile,
-  type Sides,
-} from "@/lib/print";
 
-export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "QuickPrint — Scan. Upload. Print." },
-      {
-        name: "description",
-        content:
-          "Send documents to your neighborhood print shop from your phone. Live cost, per-file settings, in English, हिंदी, and मराठी.",
-      },
-      { property: "og:title", content: "QuickPrint — Scan. Upload. Print." },
-      {
-        property: "og:description",
-        content:
-          "Wireless printing for everyone. No app to install, no account to make.",
-      },
-    ],
-  }),
-  component: QuickPrintPage,
-});
+const ALLOWED_EXT = ["pdf", "jpg", "jpeg", "png", "docx"];
+const MAX_BYTES = 25 * 1024 * 1024; // 25MB
+const DEFAULT_SETTINGS = { copies: 1, pagesInput: "", paper: "A4", color: "bw", orientation: "portrait", sides: "single", fit: true };
+
+// RESTORED: Self-contained translation dictionary to prevent the white-screen crash completely
+const translations = {
+  en: {
+    title: "QuickPrint",
+    subtitle: "Scan. Upload. Print.",
+    dropzoneTitle: "Drop files here or click to browse",
+    dropzoneSub: "Supports PDF, Documents, and Images up to 25MB.",
+    selectFiles: "Select Files",
+    addMore: "Add More Files",
+    uploadingBatch: "Uploading Batch...",
+    sendingServer: "Sending batch to server...",
+    filesInQueue: "Files In Queue",
+    noFilesYet: "No files uploaded yet",
+    clearAll: "Clear All",
+    customSettings: "Custom Settings",
+    letShopDecide: "Let Shop Decide",
+    jobStatus: "Job Status",
+    token: "Token",
+    queued: "Queued",
+    printing: "Printing",
+    ready: "Ready",
+    position: "Queue Position",
+    cancelJob: "Cancel Job",
+    newOrder: "New Order",
+    dashboard: "Shop Dashboard",
+    estCost: "Estimated Cost",
+    items: "Items",
+    sendPrint: "Send to Print",
+    privacyTitle: "Privacy Policy",
+    privacyDesc: "Your files are securely transmitted directly to our shop storage system and deleted completely after processing.",
+    consentLabel: "I consent to the vendor viewing my document contents to verify print layouts.",
+    cancel: "Cancel",
+    continue: "Continue",
+    copies: "Copies",
+    paperSize: "Paper Size",
+    color: "Color",
+    orientation: "Orientation",
+    sides: "Sides",
+    bw: "B&W",
+    colorOpt: "Color",
+    portrait: "Portrait",
+    landscape: "Landscape",
+    single: "Single",
+    double: "Double",
+    estFileCost: "Est. File Cost",
+    settings: "Settings"
+  },
+  hi: {
+    title: "क्विकप्रिंट",
+    subtitle: "स्कैन। अपलोड। प्रिंट।",
+    dropzoneTitle: "फाइलें यहां छोड़ें या ब्राउज़ करने के लिए क्लिक करें",
+    dropzoneSub: "25MB तक पीडीएफ, दस्तावेज़ और छवियों का समर्थन करता है।",
+    selectFiles: "फाइलें चुनें",
+    addMore: "और फाइलें जोड़ें",
+    uploadingBatch: "बैच अपलोड हो रहा है...",
+    sendingServer: "सर्वर पर बैच भेजा जा रहा है...",
+    filesInQueue: "कतार में फाइलें",
+    noFilesYet: "अभी तक कोई फाइल अपलोड नहीं हुई",
+    clearAll: "सभी साफ करें",
+    customSettings: "कस्टम सेटिंग्स",
+    letShopDecide: "दुकानदार को तय करने दें",
+    jobStatus: "काम की स्थिति",
+    token: "टोकन",
+    queued: "कतार में",
+    printing: "प्रिंट हो रहा है",
+    ready: "तैयार",
+    position: "कतार की स्थिति",
+    cancelJob: "काम रद्द करें",
+    newOrder: "नया ऑर्डर",
+    dashboard: "दुकान डैशबोर्ड",
+    estCost: "अनुमानित लागत",
+    items: "आइटम",
+    sendPrint: "प्रिंट के लिए भेजें",
+    privacyTitle: "गोपनीयता नीति",
+    privacyDesc: "आपकी फाइलें सुरक्षित रूप से सीधे हमारे शॉप स्टोरेज सिस्टम में भेजी जाती हैं और प्रोसेसिंग के बाद पूरी तरह से डिलीट कर दी जाती हैं।",
+    consentLabel: "मैं प्रिंट लेआउट को सत्यापित करने के लिए विक्रेता को मेरे दस्तावेज़ की सामग्री देखने की सहमति देता हूँ।",
+    cancel: "रद्द करें",
+    continue: "जारी रखें",
+    copies: "प्रतियां",
+    paperSize: "कागज का आकार",
+    color: "रंग",
+    orientation: "अभिविन्यास",
+    sides: "पक्ष",
+    bw: "ब्लैक एंड वाइट",
+    colorOpt: "रंगीन",
+    portrait: "पोर्ट्रेट",
+    landscape: "लैंडस्केप",
+    single: "एक तरफा",
+    double: "दोनों तरफा",
+    estFileCost: "अनुमानित फाइल लागत",
+    settings: "सेटिंग्स"
+  },
+  mr: {
+    title: "क्विकप्रिंट",
+    subtitle: "स्कॅन. अपलोड. प्रिंट.",
+    dropzoneTitle: "फायली येथे टाका किंवा ब्राउझ करण्यासाठी क्लिक करा",
+    dropzoneSub: "25MB पर्यंत पीडीएफ, दस्तऐवज आणि प्रतिमांना समर्थन देते.",
+    selectFiles: "फायली निवडा",
+    addMore: "आणखी फायली जोडा",
+    uploadingBatch: "बॅच अपलोड होत आहे...",
+    sendingServer: "सर््हरवर बॅच पाठवत आहे...",
+    filesInQueue: "रांगेत फायली",
+    noFilesYet: "अजून फायली अपलोड केल्या नाहीत",
+    clearAll: "सर्व साफ करा",
+    customSettings: "कस्टम सेटिंग्ज",
+    letShopDecide: "दुकानदाराला ठरवू द्या",
+    jobStatus: "कामाची स्थिती",
+    token: "टोकन",
+    queued: "रांगेत",
+    printing: "प्रिंट होत आहे",
+    ready: "तयार",
+    position: "रांगेतील स्थान",
+    cancelJob: "काम रद्द करा",
+    newOrder: "नवीन ऑर्डर",
+    dashboard: "दुकान डॅशबोर्ड",
+    estCost: "अंदाजे खर्च",
+    items: "आयटम",
+    sendPrint: "प्रिंटसाठी पाठवा",
+    privacyTitle: "गोपनीयता धोरण",
+    privacyDesc: "तुमच्या फायली आमच्या शॉप स्टोरेज सिस्टममध्ये सुरक्षितपणे पाठवल्या जातात आणि प्रक्रियेनंतर पूर्णपणे हटवल्या जातात.",
+    consentLabel: "प्रिंट लेआउटची पडताळणी करण्यासाठी विक्रेत्याला माझ्या दस्तऐवजाची सामग्री पाहण्यास मी संमती देतो.",
+    cancel: "रद्द करा",
+    continue: "पुढील",
+    copies: "प्रती",
+    paperSize: "कागदाचा आकार",
+    color: "रंग",
+    orientation: "अभिमुखता",
+    sides: "बाजू",
+    bw: "ब्लॅक अँड व्हाईट",
+    colorOpt: "रंगीत",
+    portrait: "पोर्ट्रेट",
+    landscape: "लँडस्केप",
+    single: "एकतर्फी",
+    double: "दुतर्फी",
+    estFileCost: "अंदाजे फाईल खर्च",
+    settings: "सेटिंग्ज"
+  }
+} as const;
+
+type LangCode = "en" | "hi" | "mr";
+
+type PrintFile = {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  ext: string;
+  pages: number;
+  rotation: number;
+  previewUrl?: string;
+  settings: typeof DEFAULT_SETTINGS;
+};
 
 type Toast = { id: number; kind: "success" | "warning" | "info"; text: string };
-
 type JobStatus = "queued" | "printing" | "done";
 type Job = {
   token: string;
@@ -82,34 +194,29 @@ function newId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-function QuickPrintPage() {
-  const [lang, setLang] = useState<Lang>("en");
+export default function QuickPrintPage() {
   const [dark, setDark] = useState(false);
+  const [lang, setLang] = useState<LangCode>("en"); // <-- RESTORED: Language tracking state
   const [files, setFiles] = useState<PrintFile[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [uploading, setUploading] = useState(false);
   const [uploadPct, setUploadPct] = useState(0);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [shopModal, setShopModal] = useState(false);
-  const [downloadModal, setDownloadModal] = useState(false);
   const [viewConsent, setViewConsent] = useState(false);
-  const [allowDownload, setAllowDownload] = useState(false);
-  const [downloadConsent, setDownloadConsent] = useState(false);
   const [job, setJob] = useState<Job | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileListRef = useRef<HTMLDivElement>(null);
   const jobRef = useRef<HTMLDivElement>(null);
 
-  // Apply dark class on documentElement
+  // Helper macro function to easily swap texts dynamically based on current language choice
+  const t = (key: keyof typeof translations["en"]) => translations[lang][key] || translations["en"][key];
+
   useEffect(() => {
     if (typeof document === "undefined") return;
     document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
 
-  // Devanagari for HI/MR using Noto Sans Devanagari (already loaded in root)
-  const langClass = lang === "en" ? "" : "[font-family:'Noto_Sans_Devanagari',_Instrument_Sans,_sans-serif]";
-
-  // Job progress simulation
   useEffect(() => {
     if (!job || job.status === "done") return;
     const t1 = setTimeout(() => {
@@ -124,71 +231,83 @@ function QuickPrintPage() {
     };
   }, [job?.token]);
 
-  const pushToast = useCallback(
-    (kind: Toast["kind"], text: string) => {
-      const id = Date.now() + Math.random();
-      setToasts((t) => [...t, { id, kind, text }]);
-      setTimeout(() => {
-        setToasts((t) => t.filter((x) => x.id !== id));
-      }, 2600);
-    },
-    [],
-  );
+  const pushToast = useCallback((kind: Toast["kind"], text: string) => {
+    const id = Date.now() + Math.random();
+    setToasts((t) => [...t, { id, kind, text }]);
+    setTimeout(() => {
+      setToasts((t) => t.filter((x) => x.id !== id));
+    }, 5000);
+  }, []);
 
-  const handleFiles = useCallback(
-    (raw: FileList | File[]) => {
-      const list = Array.from(raw);
-      const accepted: PrintFile[] = [];
-      let skipped = 0;
-      for (const f of list) {
-        const ext = extOf(f.name);
-        if (!ALLOWED_EXT.includes(ext) || f.size > MAX_BYTES) {
-          skipped++;
-          continue;
-        }
-        const previewUrl = isImage(ext) || isPdf(ext) ? URL.createObjectURL(f) : undefined;
-        accepted.push({
-          id: newId(),
-          name: f.name,
-          size: f.size,
-          type: f.type,
-          ext,
-          pages: estimatePages(f, ext),
-          rotation: 0,
-          previewUrl,
-          settings: { ...DEFAULT_SETTINGS },
+  const handleFiles = useCallback((raw: FileList | File[]) => {
+    const list = Array.from(raw);
+    if (list.length === 0) return;
+
+    setUploading(true);
+    setUploadPct(0);
+
+    const newUploadedFiles: PrintFile[] = [];
+    let completedCount = 0;
+
+    list.forEach((fileToUpload) => {
+      const formData = new FormData();
+      formData.append("file", fileToUpload);
+
+      fetch("/", {
+        method: "POST",
+        body: formData,
+      })
+        .then(async (response) => {
+          completedCount++;
+          if (response.ok) {
+            const resultText = await response.text();
+            
+            let shortMessage = "Uploaded successfully!";
+            if (resultText.includes("Job ID is:")) {
+              const matches = resultText.match(/Job ID is:\s*(.*)/);
+              if (matches && matches[1]) {
+                if (matches[1].includes("'job_id':")) {
+                  const idMatch = matches[1].match(/'job_id':\s*'([^']+)'/);
+                  shortMessage = idMatch ? `File uploaded! Job ID: ${idMatch[1]}` : "File uploaded successfully!";
+                } else {
+                  shortMessage = `File uploaded! Job ID: ${matches[1]}`;
+                }
+              }
+            }
+
+            pushToast("success", `${fileToUpload.name}: ${shortMessage}`);
+            
+            newUploadedFiles.push({
+              id: newId(),
+              name: fileToUpload.name,
+              size: fileToUpload.size,
+              type: fileToUpload.type,
+              ext: fileToUpload.name.split('.').pop()?.toLowerCase() || "",
+              pages: 1,
+              rotation: 0,
+              settings: { ...DEFAULT_SETTINGS }
+            });
+          } else {
+            pushToast("warning", `Failed to upload ${fileToUpload.name}`);
+          }
+
+          if (completedCount === list.length) {
+            setUploading(false);
+            if (newUploadedFiles.length > 0) {
+              setFiles((prev) => [...prev, ...newUploadedFiles]);
+            }
+          }
+        })
+        .catch((error) => {
+          completedCount++;
+          pushToast("warning", `Network connection error on ${fileToUpload.name}`);
+          console.error(error);
+          if (completedCount === list.length) {
+            setUploading(false);
+          }
         });
-      }
-      if (skipped > 0) pushToast("warning", tr(lang, "badFile"));
-      if (accepted.length === 0) return;
-
-      // Simulate upload progress
-      setUploading(true);
-      setUploadPct(0);
-      const start = Date.now();
-      const dur = 900;
-      const tick = () => {
-        const p = Math.min(100, ((Date.now() - start) / dur) * 100);
-        setUploadPct(p);
-        if (p < 100) requestAnimationFrame(tick);
-        else {
-          setFiles((prev) => [...prev, ...accepted]);
-          setExpanded((prev) => {
-            const next = new Set(prev);
-            if (accepted[0]) next.add(accepted[0].id);
-            return next;
-          });
-          setUploading(false);
-          pushToast("success", tr(lang, "uploadDone"));
-          setTimeout(() => {
-            fileListRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }, 80);
-        }
-      };
-      requestAnimationFrame(tick);
-    },
-    [lang, pushToast],
-  );
+    });
+  }, [pushToast]);
 
   const onPick = () => inputRef.current?.click();
 
@@ -196,9 +315,7 @@ function QuickPrintPage() {
     setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
   };
   const updateSettings = (id: string, patch: Partial<PrintFile["settings"]>) => {
-    setFiles((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, settings: { ...f.settings, ...patch } } : f)),
-    );
+    setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, settings: { ...f.settings, ...patch } } : f)));
   };
   const removeFile = (id: string) => {
     setFiles((prev) => {
@@ -211,29 +328,32 @@ function QuickPrintPage() {
     files.forEach((f) => f.previewUrl && URL.revokeObjectURL(f.previewUrl));
     setFiles([]);
     setExpanded(new Set());
-    pushToast("success", tr(lang, "cleared"));
+    pushToast("success", "Cleared all selections.");
   };
 
   const totals = useMemo(() => {
-    let cost = 0;
-    let pages = 0;
+    let totalCost = 0;
+    let totalPages = 0;
     for (const f of files) {
-      const c = costForFile(f);
-      cost += c.cost;
-      pages += c.pages;
+      const copies = f.settings.copies || 1;
+      const isColor = f.settings.color === "color";
+      const pricePerPage = isColor ? 10 : 2; 
+      
+      totalCost += pricePerPage * copies;
+      totalPages += copies;
     }
-    return { cost, pages };
+    return { cost: totalCost, pages: totalPages };
   }, [files]);
 
   const submitJob = (letShopDecide: boolean) => {
     if (files.length === 0) {
-      pushToast("warning", tr(lang, "noFiles"));
+      pushToast("warning", "Please select files first.");
       return;
     }
     const token = String(Math.floor(100 + Math.random() * 900));
     const position = Math.floor(1 + Math.random() * 5);
     setJob({ token, position, status: "queued", letShopDecide });
-    pushToast("success", letShopDecide ? tr(lang, "vendorDone") : tr(lang, "quickDone"));
+    pushToast("success", "Job submitted successfully!");
     setTimeout(() => {
       jobRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
@@ -241,7 +361,7 @@ function QuickPrintPage() {
 
   const openCustom = () => {
     if (files.length === 0) {
-      pushToast("warning", tr(lang, "noFiles"));
+      pushToast("warning", "No files selected.");
       return;
     }
     setExpanded(new Set([files[0].id]));
@@ -253,12 +373,10 @@ function QuickPrintPage() {
 
   const openShopModal = () => {
     if (files.length === 0) {
-      pushToast("warning", tr(lang, "noFiles"));
+      pushToast("warning", "No files selected.");
       return;
     }
     setViewConsent(false);
-    setAllowDownload(false);
-    setDownloadConsent(false);
     setShopModal(true);
   };
 
@@ -269,57 +387,39 @@ function QuickPrintPage() {
   };
 
   return (
-    <div className={`relative min-h-dvh bg-background text-foreground curved-motif pb-40 ${langClass}`}>
-      {/* Decorative corner arcs */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full border border-accent/40 opacity-60"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -left-32 top-1/3 size-96 rounded-full border border-earth/20 opacity-50"
-      />
+    <div className="relative min-h-dvh bg-background text-foreground curved-motif pb-40">
+      <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full border border-accent/40 opacity-60" />
+      <div aria-hidden className="pointer-events-none absolute -left-32 top-1/3 size-96 rounded-full border border-earth/20 opacity-50" />
 
-      {/* Header */}
       <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-[560px] items-center justify-between px-4">
           <div className="flex min-w-0 items-center gap-3">
-            <div
-              aria-label="QuickPrint logo"
-              className="grid size-10 shrink-0 place-items-center rounded-[14px] border border-border-strong bg-primary font-semibold tracking-tight text-primary-foreground shadow-sm"
-            >
+            <div aria-label="QuickPrint logo" className="grid size-10 shrink-0 place-items-center rounded-[14px] border border-border-strong bg-primary font-semibold tracking-tight text-primary-foreground shadow-sm">
               QP
             </div>
             <div className="min-w-0">
-              <h1 className="truncate text-base font-semibold leading-none">
-                {tr(lang, "brand")}
-              </h1>
-              <p className="mt-1 truncate text-[10px] uppercase tracking-wider text-muted-foreground">
-                {tr(lang, "tagline")}
-              </p>
+              <h1 className="truncate text-base font-semibold leading-none">{t("title")}</h1>
+              <p className="mt-1 truncate text-[10px] uppercase tracking-wider text-muted-foreground">{t("subtitle")}</p>
             </div>
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <div className="flex rounded-full bg-surface-muted p-1 ring-1 ring-border" role="group" aria-label="Language">
-              {LANGS.map((l) => (
+            {/* RESTORED: Standard inline dynamic translation selector layout block item switches */}
+            <div className="flex items-center gap-1 rounded-full bg-surface-muted p-0.5 ring-1 ring-border">
+              {(["en", "hi", "mr"] as LangCode[]).map((l) => (
                 <button
-                  key={l.code}
-                  onClick={() => setLang(l.code)}
-                  aria-pressed={lang === l.code}
-                  className={`min-h-7 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                    lang === l.code
-                      ? "bg-surface text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
+                  key={l}
+                  onClick={() => setLang(l)}
+                  className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase transition-colors ${lang === l ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
                 >
-                  {l.label}
+                  {l === "en" ? "EN" : l === "hi" ? "हिं" : "मरा"}
                 </button>
               ))}
             </div>
+
             <button
               onClick={() => setDark((d) => !d)}
-              aria-label={tr(lang, "theme")}
+              aria-label="Toggle Theme"
               className="grid size-9 place-items-center rounded-full bg-surface-muted ring-1 ring-border text-foreground transition-colors hover:bg-surface"
             >
               {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
@@ -328,30 +428,24 @@ function QuickPrintPage() {
         </div>
       </header>
 
-      {/* Toasts */}
       <div className="pointer-events-none fixed inset-x-0 top-20 z-50 mx-auto flex max-w-[560px] flex-col items-center gap-2 px-4">
         {toasts.map((t) => (
           <div
             key={t.id}
             role="status"
             className={`toast-enter pointer-events-auto flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur-md ${
-              t.kind === "success"
-                ? "border-success/30 bg-success/10 text-foreground"
-                : t.kind === "warning"
-                  ? "border-warning/40 bg-warning/15 text-foreground"
-                  : "border-border bg-surface text-foreground"
+              t.kind === "success" ? "border-success/30 bg-success/10 text-foreground" : t.kind === "warning" ? "border-warning/40 bg-warning/15 text-foreground" : "border-border bg-surface text-foreground"
             }`}
           >
             {t.kind === "success" && <CheckCircle2 className="size-4 text-success" />}
             {t.kind === "warning" && <AlertTriangle className="size-4 text-warning" />}
             {t.kind === "info" && <Loader2 className="size-4 animate-spin" />}
-            <span className="leading-tight">{t.text}</span>
+            <span className="leading-tight text-xs font-mono break-all">{t.text}</span>
           </div>
         ))}
       </div>
 
       <main className="mx-auto max-w-[560px] space-y-8 px-4 py-8">
-        {/* Upload Zone */}
         <section aria-labelledby="upload-heading">
           <input
             ref={inputRef}
@@ -376,12 +470,8 @@ function QuickPrintPage() {
             <div className="mb-4 grid size-12 place-items-center rounded-full bg-accent/30 text-primary">
               <Upload className="size-5" />
             </div>
-            <h2 id="upload-heading" className="text-balance text-lg font-semibold">
-              {tr(lang, "uploadTitle")}
-            </h2>
-            <p className="mt-1 max-w-[36ch] text-pretty text-sm text-muted-foreground">
-              {tr(lang, "uploadHint")}
-            </p>
+            <h2 id="upload-heading" className="text-balance text-lg font-semibold">{t("dropzoneTitle")}</h2>
+            <p className="mt-1 max-w-[36ch] text-pretty text-sm text-muted-foreground">{t("dropzoneSub")}</p>
             <button
               type="button"
               onClick={(e) => {
@@ -394,43 +484,34 @@ function QuickPrintPage() {
               {uploading ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  {tr(lang, "uploading")}
+                  {t("uploadingBatch")}
                 </>
               ) : files.length === 0 ? (
-                tr(lang, "selectFiles")
+                t("selectFiles")
               ) : (
-                tr(lang, "addMore")
+                t("addMore")
               )}
             </button>
 
             {uploading && (
               <div className="mt-5 w-full max-w-xs">
                 <div className="h-2 overflow-hidden rounded-full bg-surface-muted">
-                  <div
-                    className="h-full rounded-full bg-primary transition-[width] duration-100"
-                    style={{ width: `${uploadPct}%` }}
-                  />
+                  <div className="h-full rounded-full bg-primary " style={{ width: `100%` }} />
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {Math.round(uploadPct)}%
-                </p>
+                <p className="mt-2 text-xs text-muted-foreground">{t("sendingServer")}</p>
               </div>
             )}
           </div>
         </section>
 
-        {/* File List */}
         <section ref={fileListRef} aria-labelledby="files-heading" className="space-y-4 scroll-mt-20">
           <div className="flex items-center justify-between px-1">
             <h3 id="files-heading" className="text-sm font-medium text-muted-foreground">
-              {files.length} {tr(lang, "filesSelected")}
+              {files.length} {t("filesInQueue")}
             </h3>
             {files.length > 0 && (
-              <button
-                onClick={clearAll}
-                className="min-h-9 text-sm font-medium text-earth transition-opacity hover:opacity-80"
-              >
-                {tr(lang, "clearAll")}
+              <button onClick={clearAll} className="min-h-9 text-sm font-medium text-earth transition-opacity hover:opacity-80">
+                {t("clearAll")}
               </button>
             )}
           </div>
@@ -438,15 +519,29 @@ function QuickPrintPage() {
           {files.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border bg-surface/50 px-6 py-10 text-center">
               <FileText className="mx-auto mb-3 size-8 text-muted-foreground/60" />
-              <p className="text-sm text-muted-foreground">{tr(lang, "emptyTitle")}</p>
+              <p className="text-sm text-muted-foreground">{t("noFilesYet")}</p>
             </div>
           ) : (
             files.map((f) => (
               <FileCard
                 key={f.id}
                 file={f}
-                lang={lang}
                 expanded={expanded.has(f.id)}
+                langLabels={{
+                  copies: t("copies"),
+                  paperSize: t("paperSize"),
+                  color: t("color"),
+                  orientation: t("orientation"),
+                  sides: t("sides"),
+                  bw: t("bw"),
+                  colorOpt: t("colorOpt"),
+                  portrait: t("portrait"),
+                  landscape: t("landscape"),
+                  single: t("single"),
+                  double: t("double"),
+                  estFileCost: t("estFileCost"),
+                  settings: t("settings")
+                }}
                 onToggle={() =>
                   setExpanded((prev) => {
                     const n = new Set(prev);
@@ -462,42 +557,28 @@ function QuickPrintPage() {
           )}
         </section>
 
-        {/* Secondary Actions */}
         <section className="grid grid-cols-2 gap-3">
-          <button
-            onClick={openCustom}
-            className="min-h-12 rounded-2xl bg-surface px-4 py-3 text-sm font-medium ring-1 ring-border transition-colors hover:bg-surface-muted"
-          >
-            {tr(lang, "customSettings")}
+          <button onClick={openCustom} className="min-h-12 rounded-2xl bg-surface px-4 py-3 text-sm font-medium ring-1 ring-border transition-colors hover:bg-surface-muted">
+            {t("customSettings")}
           </button>
-          <button
-            onClick={openShopModal}
-            className="min-h-12 rounded-2xl bg-surface px-4 py-3 text-sm font-medium ring-1 ring-border transition-colors hover:bg-surface-muted"
-          >
-            {tr(lang, "letShopDecide")}
+          <button onClick={openShopModal} className="min-h-12 rounded-2xl bg-surface px-4 py-3 text-sm font-medium ring-1 ring-border transition-colors hover:bg-surface-muted">
+            {t("letShopDecide")}
           </button>
         </section>
 
-        {/* Job Status */}
         {job && (
-          <section
-            ref={jobRef}
-            aria-live="polite"
-            className="scroll-mt-20 rounded-3xl bg-primary p-5 text-primary-foreground shadow-xl shadow-primary/20"
-          >
+          <section ref={jobRef} aria-live="polite" className="scroll-mt-20 rounded-3xl bg-primary p-5 text-primary-foreground shadow-xl shadow-primary/20">
             <div className="mb-6 flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <h4 className="text-xs font-medium uppercase tracking-widest opacity-70">
-                  {tr(lang, "jobStatus")}
-                </h4>
+                <h4 className="text-xs font-medium uppercase tracking-widest opacity-70">{t("jobStatus")}</h4>
                 <p className="mt-1 truncate text-lg font-medium">
-                  {job.status === "queued" && tr(lang, "queued")}
-                  {job.status === "printing" && tr(lang, "printing")}
-                  {job.status === "done" && tr(lang, "done")}
+                  {job.status === "queued" && t("queued")}
+                  {job.status === "printing" && t("printing")}
+                  {job.status === "done" && t("ready")}
                 </p>
               </div>
               <div className="shrink-0 rounded-full bg-primary-foreground/10 px-3 py-1 text-xs font-medium backdrop-blur-sm">
-                {tr(lang, "token")}: {job.token}
+                {t("token")}: {job.token}
               </div>
             </div>
 
@@ -507,174 +588,71 @@ function QuickPrintPage() {
                 const order = { queued: 0, printing: 1, done: 2 } as const;
                 const active = order[job.status] >= order[step];
                 return (
-                  <div
-                    key={step}
-                    className={`relative z-10 size-4 rounded-full ring-4 ring-primary transition-colors ${
-                      active ? "bg-accent" : "bg-primary-foreground/20"
-                    }`}
-                  />
+                  <div key={step} className={`relative z-10 size-4 rounded-full ring-4 ring-primary transition-colors ${active ? "bg-accent" : "bg-primary-foreground/20"}`} />
                 );
               })}
             </div>
             <div className="flex justify-between text-[10px] font-medium uppercase tracking-wider opacity-60">
-              <span className={job.status !== "queued" ? "" : "text-accent"}>
-                {tr(lang, "stepQueued")}
-              </span>
-              <span className={job.status === "printing" ? "text-accent" : ""}>
-                {tr(lang, "stepPrinting")}
-              </span>
-              <span className={job.status === "done" ? "text-accent" : ""}>
-                {tr(lang, "stepDone")}
-              </span>
+              <span className={job.status !== "queued" ? "" : "text-accent"}>{t("queued")}</span>
+              <span className={job.status === "printing" ? "text-accent" : ""}>{t("printing")}</span>
+              <span className={job.status === "done" ? "text-accent" : ""}>{t("ready")}</span>
             </div>
 
             <div className="mt-6 flex items-center justify-between">
-              <span className="text-sm opacity-80">
-                {tr(lang, "position")}: #{job.position}
-              </span>
+              <span className="text-sm opacity-80">{t("position")}: #{job.position}</span>
               {job.status === "queued" ? (
-                <button
-                  onClick={() => {
-                    setJob(null);
-                    pushToast("info", tr(lang, "cleared"));
-                  }}
-                  className="min-h-9 text-xs font-semibold underline decoration-accent underline-offset-4"
-                >
-                  {tr(lang, "cancelJob")}
+                <button onClick={() => { setJob(null); pushToast("info", "Job cancelled."); }} className="min-h-9 text-xs font-semibold underline decoration-accent underline-offset-4">
+                  {t("cancelJob")}
                 </button>
               ) : (
-                <button
-                  onClick={() => {
-                    clearAll();
-                    setJob(null);
-                  }}
-                  className="min-h-9 text-xs font-semibold underline decoration-accent underline-offset-4"
-                >
-                  {tr(lang, "newJob")}
+                <button onClick={() => { clearAll(); setJob(null); }} className="min-h-9 text-xs font-semibold underline decoration-accent underline-offset-4">
+                  {t("newOrder")}
                 </button>
               )}
             </div>
           </section>
         )}
 
-        {/* Shop staff link */}
         <div className="flex justify-center pt-4">
-          <Link
-            to="/shop"
-            className="inline-flex min-h-9 items-center gap-2 rounded-full bg-surface px-4 py-2 text-xs font-medium text-muted-foreground ring-1 ring-border transition-colors hover:text-foreground"
-          >
+          <button className="inline-flex min-h-9 items-center gap-2 rounded-full bg-surface px-4 py-2 text-xs font-medium text-muted-foreground ring-1 ring-border transition-colors hover:text-foreground">
             <Store className="size-3.5" />
-            {tr(lang, "shopLink")}
+            {t("dashboard")}
             <ArrowRight className="size-3.5" />
-          </Link>
+          </button>
         </div>
       </main>
 
-      {/* Sticky Footer */}
       <footer className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-md">
         <div className="mx-auto flex max-w-[560px] items-center justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              {tr(lang, "estTotal")}
-            </p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("estCost")}</p>
             <div className="flex items-baseline gap-2">
-              <p className="text-2xl font-semibold text-primary">
-                ₹{totals.cost.toFixed(2)}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                {files.length} · {totals.pages} pgs
-              </p>
+              <p className="text-2xl font-semibold text-primary">₹{totals.cost.toFixed(2)}</p>
+              <p className="text-[11px] text-muted-foreground">{files.length} {t("items")}</p>
             </div>
           </div>
-          <button
-            onClick={() => submitJob(false)}
-            disabled={files.length === 0}
-            className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-full bg-primary px-8 py-4 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-          >
+          <button onClick={() => submitJob(false)} disabled={files.length === 0} className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-full bg-primary px-8 py-4 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-50">
             <Send className="size-4" />
-            {tr(lang, "send")}
+            {t("sendPrint")}
           </button>
         </div>
       </footer>
 
-      {/* Let Shop Decide Modal */}
       {shopModal && (
         <Modal onClose={() => setShopModal(false)} labelledBy="privacy-title">
-          <h3 id="privacy-title" className="mb-2 text-lg font-semibold">
-            {tr(lang, "privacyTitle")}
-          </h3>
-          <p className="mb-6 text-pretty text-sm text-muted-foreground">
-            {tr(lang, "privacyBody")}
-          </p>
+          <h3 id="privacy-title" className="mb-2 text-lg font-semibold">{t("privacyTitle")}</h3>
+          <p className="mb-6 text-pretty text-sm text-muted-foreground">{t("privacyDesc")}</p>
           <label className="mb-6 flex cursor-pointer items-start gap-3">
             <Checkbox checked={viewConsent} onChange={setViewConsent} />
-            <span className="text-sm leading-snug">{tr(lang, "viewConsent")}</span>
+            <span className="text-sm leading-snug">{t("consentLabel")}</span>
           </label>
-
-          {allowDownload && (
-            <div className="mb-6 rounded-2xl border border-border bg-surface-muted/60 p-3 text-xs text-muted-foreground">
-              <Check className="mr-1 inline size-3 text-success" />
-              {tr(lang, "downloadConsent")}
-            </div>
-          )}
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShopModal(false)}
-              className="min-h-11 flex-1 rounded-full bg-surface-muted py-3 text-sm font-semibold text-muted-foreground ring-1 ring-border transition-colors hover:text-foreground"
-            >
-              {tr(lang, "cancel")}
+            <button onClick={() => setShopModal(false)} className="min-h-11 flex-1 rounded-full bg-surface-muted py-3 text-sm font-semibold text-muted-foreground ring-1 ring-border transition-colors hover:text-foreground">
+              {t("cancel")}
             </button>
-            <button
-              onClick={confirmShopDecide}
-              disabled={!viewConsent}
-              className="min-h-11 flex-[2] rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {tr(lang, "continueBtn")}
-            </button>
-            <button
-              onClick={() => setDownloadModal(true)}
-              aria-label={tr(lang, "downloadPerm")}
-              className={`grid size-11 shrink-0 place-items-center rounded-2xl ring-1 transition-colors ${
-                allowDownload
-                  ? "bg-accent text-accent-foreground ring-accent"
-                  : "bg-surface-muted text-muted-foreground ring-border hover:text-foreground"
-              }`}
-            >
-              <Download className="size-4" />
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* Download permission sub-modal */}
-      {downloadModal && (
-        <Modal onClose={() => setDownloadModal(false)} labelledBy="dl-title">
-          <h3 id="dl-title" className="mb-2 text-lg font-semibold">
-            {tr(lang, "downloadPerm")}
-          </h3>
-          <p className="mb-6 text-sm text-muted-foreground">
-            {tr(lang, "downloadConsent")}
-          </p>
-          <label className="mb-6 flex cursor-pointer items-start gap-3">
-            <Checkbox checked={downloadConsent} onChange={setDownloadConsent} />
-            <span className="text-sm leading-snug">{tr(lang, "downloadConsent")}</span>
-          </label>
-          <div className="flex gap-3">
-            <button
-              onClick={() => setDownloadModal(false)}
-              className="min-h-11 flex-1 rounded-full bg-surface-muted py-3 text-sm font-semibold text-muted-foreground ring-1 ring-border"
-            >
-              {tr(lang, "cancel")}
-            </button>
-            <button
-              onClick={() => {
-                setAllowDownload(downloadConsent);
-                setDownloadModal(false);
-              }}
-              className="min-h-11 flex-1 rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground"
-            >
-              {tr(lang, "save")}
+            <button onClick={confirmShopDecide} disabled={!viewConsent} className="min-h-11 flex-[2] rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-40">
+              {t("continue")}
             </button>
           </div>
         </Modal>
@@ -683,149 +661,69 @@ function QuickPrintPage() {
   );
 }
 
-/* -------- Components -------- */
-
-function Modal({
-  children,
-  onClose,
-  labelledBy,
-}: {
-  children: React.ReactNode;
-  onClose: () => void;
-  labelledBy?: string;
-}) {
+function Modal({ children, onClose, labelledBy }: { children: React.ReactNode; onClose: () => void; labelledBy?: string }) {
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={labelledBy}
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-primary/40 p-4 backdrop-blur-sm sm:items-center"
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="modal-pop w-full max-w-md rounded-[28px] bg-surface p-6 shadow-2xl ring-1 ring-border-strong"
-      >
+    <div role="dialog" aria-modal="true" aria-labelledby={labelledBy} className="fixed inset-0 z-[100] flex items-end justify-center bg-primary/40 p-4 backdrop-blur-sm sm:items-center" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="modal-pop w-full max-w-md rounded-[28px] bg-surface p-6 shadow-2xl ring-1 ring-border-strong">
         {children}
       </div>
     </div>
   );
 }
 
-function Checkbox({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
+function Checkbox({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <button
-      role="checkbox"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border-2 transition-colors ${
-        checked ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface"
-      }`}
-    >
+    <button role="checkbox" aria-checked={checked} onClick={() => onChange(!checked)} className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border-2 transition-colors ${checked ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface"}`}>
       {checked && <Check className="size-3" strokeWidth={3} />}
     </button>
   );
 }
 
-function FileCard({
-  file,
-  lang,
-  expanded,
-  onToggle,
-  onUpdate,
-  onSettings,
-  onRemove,
-}: {
-  file: PrintFile;
-  lang: Lang;
-  expanded: boolean;
-  onToggle: () => void;
-  onUpdate: (id: string, patch: Partial<PrintFile>) => void;
-  onSettings: (id: string, patch: Partial<PrintFile["settings"]>) => void;
-  onRemove: (id: string) => void;
-}) {
-  const { cost, pages } = costForFile(file);
-  const img = isImage(file.ext);
-  const pdf = isPdf(file.ext);
+function FileCard({ file, expanded, langLabels, onToggle, onUpdate, onSettings, onRemove }: { file: PrintFile; expanded: boolean; langLabels: Record<string, string>; onToggle: () => void; onUpdate: (id: string, patch: Partial<PrintFile>) => void; onSettings: (id: string, patch: Partial<PrintFile["settings"]>) => void; onRemove: (id: string) => void }) {
+  const img = ["jpg", "jpeg", "png"].includes(file.ext);
+  
+  const fileCost = useMemo(() => {
+    const isColor = file.settings.color === "color";
+    return (isColor ? 10 : 2) * (file.settings.copies || 1);
+  }, [file.settings.color, file.settings.copies]);
 
   return (
-    <div
-      id={`file-${file.id}`}
-      className="overflow-hidden rounded-3xl bg-surface ring-1 ring-border scroll-mt-20"
-    >
+    <div id={`file-${file.id}`} className="overflow-hidden rounded-3xl bg-surface ring-1 ring-border scroll-mt-20">
       <div className="flex items-start gap-4 p-4">
-        {/* Preview */}
         <div className="relative grid size-20 shrink-0 place-items-center overflow-hidden rounded-xl bg-surface-muted outline outline-1 -outline-offset-1 outline-border">
           {img && file.previewUrl ? (
-            <img
-              src={file.previewUrl}
-              alt=""
-              style={{ transform: `rotate(${file.rotation}deg)` }}
-              className="size-full object-cover transition-transform"
-            />
-          ) : pdf ? (
-            <FileText className="size-7 text-muted-foreground" />
+            <img src={file.previewUrl} alt="" style={{ transform: `rotate(${file.rotation}deg)` }} className="size-full object-cover transition-transform" />
           ) : (
-            <FileIcon className="size-7 text-muted-foreground" />
+            <FileText className="size-7 text-muted-foreground" />
           )}
-          <span className="absolute bottom-1 right-1 rounded bg-background/80 px-1 text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
-            {file.ext}
-          </span>
+          <span className="absolute bottom-1 right-1 rounded bg-background/80 px-1 text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">{file.ext}</span>
         </div>
 
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">{file.name}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {formatBytes(file.size)} · ~{file.pages} pgs
-          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">~{file.settings.copies} {langLabels.copies.toLowerCase()}</p>
           <div className="mt-3 flex flex-wrap items-center gap-1">
-            <button
-              onClick={onToggle}
-              aria-expanded={expanded}
-              className="inline-flex min-h-9 items-center gap-1 rounded-full bg-accent/25 px-3 py-1.5 text-xs font-medium text-primary"
-            >
-              {tr(lang, "settings")}
-              <ChevronDown
-                className={`size-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
-              />
+            <button onClick={onToggle} aria-expanded={expanded} className="inline-flex min-h-9 items-center gap-1 rounded-full bg-accent/25 px-3 py-1.5 text-xs font-medium text-primary">
+              {langLabels.settings}
+              <ChevronDown className={`size-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
             </button>
             {img && (
               <>
-                <button
-                  onClick={() => onUpdate(file.id, { rotation: file.rotation - 90 })}
-                  aria-label={tr(lang, "rotateLeft")}
-                  className="grid size-9 place-items-center rounded-full text-muted-foreground hover:text-foreground"
-                >
+                <button onClick={() => onUpdate(file.id, { rotation: file.rotation - 90 })} aria-label="Rotate Left" className="grid size-9 place-items-center rounded-full text-muted-foreground hover:text-foreground">
                   <RotateCcw className="size-4" />
                 </button>
-                <button
-                  onClick={() => onUpdate(file.id, { rotation: file.rotation + 90 })}
-                  aria-label={tr(lang, "rotateRight")}
-                  className="grid size-9 place-items-center rounded-full text-muted-foreground hover:text-foreground"
-                >
+                <button onClick={() => onUpdate(file.id, { rotation: file.rotation + 90 })} aria-label="Rotate Right" className="grid size-9 place-items-center rounded-full text-muted-foreground hover:text-foreground">
                   <RotateCw className="size-4" />
                 </button>
               </>
             )}
-            <button
-              onClick={() => onRemove(file.id)}
-              aria-label={tr(lang, "remove")}
-              className="ml-auto grid size-9 place-items-center rounded-full text-muted-foreground hover:text-destructive"
-            >
+            <button onClick={() => onRemove(file.id)} aria-label="Remove" className="ml-auto grid size-9 place-items-center rounded-full text-muted-foreground hover:text-destructive">
               <Trash2 className="size-4" />
             </button>
           </div>
@@ -835,104 +733,40 @@ function FileCard({
       {expanded && (
         <div className="space-y-5 border-t border-border px-4 pb-6 pt-4">
           <div className="grid grid-cols-2 gap-4">
-            <Field label={tr(lang, "copies")}>
+            <Field label={langLabels.copies}>
               <div className="flex h-11 items-center overflow-hidden rounded-xl ring-1 ring-border">
-                <button
-                  aria-label="-"
-                  onClick={() =>
-                    onSettings(file.id, {
-                      copies: Math.max(1, file.settings.copies - 1),
-                    })
-                  }
-                  className="grid h-full flex-1 place-items-center hover:bg-surface-muted"
-                >
+                <button aria-label="-" onClick={() => onSettings(file.id, { copies: Math.max(1, file.settings.copies - 1) })} className="grid h-full flex-1 place-items-center hover:bg-surface-muted">
                   <Minus className="size-4" />
                 </button>
                 <span className="min-w-10 text-center font-medium">{file.settings.copies}</span>
-                <button
-                  aria-label="+"
-                  onClick={() =>
-                    onSettings(file.id, {
-                      copies: Math.min(99, file.settings.copies + 1),
-                    })
-                  }
-                  className="grid h-full flex-1 place-items-center hover:bg-surface-muted"
-                >
+                <button aria-label="+" onClick={() => onSettings(file.id, { copies: Math.min(99, file.settings.copies + 1) })} className="grid h-full flex-1 place-items-center hover:bg-surface-muted">
                   <Plus className="size-4" />
                 </button>
               </div>
             </Field>
-            <Field label={tr(lang, "pages")}>
-              <input
-                value={file.settings.pagesInput}
-                onChange={(e) => onSettings(file.id, { pagesInput: e.target.value })}
-                placeholder={tr(lang, "pagesHint")}
-                inputMode="text"
-                className="h-11 w-full rounded-xl bg-surface px-3 text-sm ring-1 ring-border outline-none placeholder:text-muted-foreground/70 focus:ring-2 focus:ring-ring"
-              />
-            </Field>
           </div>
 
-          <Field label={tr(lang, "paperSize")}>
-            <SegGroup
-              value={file.settings.paper}
-              onChange={(v) => onSettings(file.id, { paper: v as PaperSize })}
-              options={[
-                { v: "A4", l: "A4" },
-                { v: "A3", l: "A3" },
-                { v: "Letter", l: "Letter" },
-                { v: "Legal", l: "Legal" },
-              ]}
-            />
+          <Field label={langLabels.paperSize}>
+            <SegGroup value={file.settings.paper} onChange={(v) => onSettings(file.id, { paper: v })} options={[{ v: "A4", l: "A4" }, { v: "A3", l: "A3" }]} />
           </Field>
 
           <div className="grid grid-cols-2 gap-4">
-            <Field label={tr(lang, "color")}>
-              <SegGroup
-                value={file.settings.color}
-                onChange={(v) => onSettings(file.id, { color: v as ColorMode })}
-                options={[
-                  { v: "bw", l: tr(lang, "bw") },
-                  { v: "color", l: tr(lang, "colorOpt") },
-                ]}
-              />
+            <Field label={langLabels.color}>
+              <SegGroup value={file.settings.color} onChange={(v) => onSettings(file.id, { color: v })} options={[{ v: "bw", l: langLabels.bw }, { v: "color", l: langLabels.colorOpt }]} />
             </Field>
-            <Field label={tr(lang, "orientation")}>
-              <SegGroup
-                value={file.settings.orientation}
-                onChange={(v) => onSettings(file.id, { orientation: v as Orientation })}
-                options={[
-                  { v: "portrait", l: tr(lang, "portrait") },
-                  { v: "landscape", l: tr(lang, "landscape") },
-                ]}
-              />
+            <Field label={langLabels.orientation}>
+              <SegGroup value={file.settings.orientation} onChange={(v) => onSettings(file.id, { orientation: v })} options={[{ v: "portrait", l: langLabels.portrait }, { v: "landscape", l: langLabels.landscape }]} />
             </Field>
           </div>
 
-          <Field label={tr(lang, "sides")}>
-            <SegGroup
-              value={file.settings.sides}
-              onChange={(v) => onSettings(file.id, { sides: v as Sides })}
-              options={[
-                { v: "single", l: tr(lang, "single") },
-                { v: "double", l: tr(lang, "double") },
-              ]}
-            />
+          <Field label={langLabels.sides}>
+            <SegGroup value={file.settings.sides} onChange={(v) => onSettings(file.id, { sides: v })} options={[{ v: "single", l: langLabels.single }, { v: "double", l: langLabels.double }]} />
           </Field>
 
-          <label className="flex cursor-pointer items-center gap-3">
-            <Checkbox
-              checked={file.settings.fit}
-              onChange={(v) => onSettings(file.id, { fit: v })}
-            />
-            <span className="text-sm">{tr(lang, "fit")}</span>
-          </label>
-
           <div className="flex items-center justify-between rounded-xl bg-background px-4 py-3 ring-1 ring-border">
-            <span className="text-sm font-medium">{tr(lang, "estCost")}</span>
+            <span className="text-sm font-medium">{langLabels.estFileCost}</span>
             <div className="text-right">
-              <p className="font-semibold">₹{cost.toFixed(2)}</p>
-              <p className="text-[11px] text-muted-foreground">{pages} pgs</p>
+              <p className="font-semibold">₹{fileCost.toFixed(2)}</p>
             </div>
           </div>
         </div>
@@ -944,38 +778,19 @@ function FileCard({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[11px] font-semibold uppercase tracking-tight text-muted-foreground">
-        {label}
-      </label>
+      <label className="text-[11px] font-semibold uppercase tracking-tight text-muted-foreground">{label}</label>
       {children}
     </div>
   );
 }
 
-function SegGroup<T extends string>({
-  value,
-  onChange,
-  options,
-}: {
-  value: T;
-  onChange: (v: T) => void;
-  options: { v: T; l: string }[];
-}) {
+function SegGroup<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { v: T; l: string }[] }) {
   return (
     <div className="flex h-11 overflow-hidden rounded-xl ring-1 ring-border">
       {options.map((o) => {
         const active = value === o.v;
         return (
-          <button
-            key={o.v}
-            onClick={() => onChange(o.v)}
-            aria-pressed={active}
-            className={`min-h-11 flex-1 px-2 text-xs font-medium transition-colors ${
-              active
-                ? "bg-primary text-primary-foreground"
-                : "bg-surface text-foreground hover:bg-surface-muted"
-            }`}
-          >
+          <button key={o.v} onClick={() => onChange(o.v)} aria-pressed={active} className={`min-h-11 flex-1 px-2 text-xs font-medium transition-colors ${active ? "bg-primary text-primary-foreground" : "bg-surface text-foreground hover:bg-surface-muted"}`}>
             {o.l}
           </button>
         );
