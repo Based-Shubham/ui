@@ -1,0 +1,170 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans:
+    "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-earth: var(--earth);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+}
+
+/* Light theme — warm paper, deep navy, powder accent */
+:root {
+  --radius: 0.75rem;
+  --background: oklch(0.985 0.012 85);          /* #FEFAEF paper */
+  --foreground: oklch(0.21 0.05 270);           /* near #182350 */
+  --surface: oklch(1 0 0);                       /* card white */
+  --surface-muted: oklch(0.965 0.012 85);        /* slightly darker paper */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.05 270);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.05 270);
+  --primary: oklch(0.27 0.09 268);              /* #182350 deep blue */
+  --primary-foreground: oklch(0.985 0.012 85);
+  --secondary: oklch(0.96 0.008 85);
+  --secondary-foreground: oklch(0.21 0.05 270);
+  --muted: oklch(0.95 0.008 85);
+  --muted-foreground: oklch(0.5 0.03 270);
+  --accent: oklch(0.86 0.07 245);               /* #AFD2FA powder blue */
+  --accent-foreground: oklch(0.27 0.09 268);
+  --earth: oklch(0.65 0.08 65);                 /* #B9915E warm brown */
+  --success: oklch(0.62 0.16 150);
+  --warning: oklch(0.78 0.15 75);
+  --destructive: oklch(0.58 0.22 25);
+  --destructive-foreground: oklch(0.985 0.012 85);
+  --border: oklch(0.9 0.01 270 / 0.5);
+  --border-strong: oklch(0.85 0.02 270);
+  --input: oklch(0.93 0.012 270);
+  --ring: oklch(0.55 0.12 265);
+}
+
+/* Dark theme — midnight navy, glowing powder accent */
+.dark {
+  --background: oklch(0.18 0.03 265);           /* #091018-ish midnight */
+  --foreground: oklch(0.97 0.008 85);
+  --surface: oklch(0.24 0.035 265);             /* #111b26 surface */
+  --surface-muted: oklch(0.21 0.03 265);
+  --card: oklch(0.24 0.035 265);
+  --card-foreground: oklch(0.97 0.008 85);
+  --popover: oklch(0.24 0.035 265);
+  --popover-foreground: oklch(0.97 0.008 85);
+  --primary: oklch(0.7 0.16 265);               /* #5A90FF accent-as-primary */
+  --primary-foreground: oklch(0.15 0.03 265);
+  --secondary: oklch(0.28 0.04 265);
+  --secondary-foreground: oklch(0.97 0.008 85);
+  --muted: oklch(0.28 0.04 265);
+  --muted-foreground: oklch(0.72 0.03 265);
+  --accent: oklch(0.78 0.12 250);
+  --accent-foreground: oklch(0.18 0.03 265);
+  --earth: oklch(0.72 0.09 65);
+  --success: oklch(0.72 0.18 150);
+  --warning: oklch(0.82 0.17 75);
+  --destructive: oklch(0.68 0.2 25);
+  --destructive-foreground: oklch(0.97 0.008 85);
+  --border: oklch(1 0 0 / 0.08);
+  --border-strong: oklch(1 0 0 / 0.18);
+  --input: oklch(1 0 0 / 0.12);
+  --ring: oklch(0.7 0.16 265);
+}
+
+@utility curved-motif {
+  background-image:
+    radial-gradient(
+      circle at top right,
+      color-mix(in oklab, var(--accent) 35%, transparent) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at bottom left,
+      color-mix(in oklab, var(--earth) 18%, transparent) 0%,
+      transparent 60%
+    );
+}
+
+@utility stepper-line {
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent,
+    transparent 4px,
+    color-mix(in oklab, var(--foreground) 18%, transparent) 4px,
+    color-mix(in oklab, var(--foreground) 18%, transparent) 8px
+  );
+}
+
+@utility toast-enter {
+  animation: toast-slide 0.18s ease-out both;
+}
+
+@keyframes toast-slide {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modal-pop {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@utility modal-pop {
+  animation: modal-pop 0.18s ease-out both;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}
